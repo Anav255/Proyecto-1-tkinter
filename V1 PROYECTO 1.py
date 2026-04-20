@@ -1,6 +1,8 @@
 from tkinter import *
 from PIL import Image, ImageTk
 import os
+import random
+
 
 # -----------------------------------------
 # canva
@@ -30,6 +32,10 @@ Label(canvas, text="Ingrese su nombre: ", font=('Agency FB',14),
 nombre = Entry(canvas, width=20, font=('Agency FB',14))
 nombre.place(x=130,y=105)
 
+#Personajes 
+#CAMELLO DE PRUEBA FONDO
+
+
 # Texto About
 
 Button(canvas, text="Información", font=('Agency FB',14), 
@@ -58,6 +64,8 @@ Version: 1
 # -----------------------------------------
 Label(canvas, text="Seleccione un personaje", font=('Agency FB',14), 
       bg="#77b67c", fg='black').place(x=130,y=200)
+Label(canvas, text="Seleccione 3 animales", font=('Agency FB',14), 
+      bg="#77b67c", fg='black').place(x=1150,y=50)
 
 # -----------------------------------------
 # Pantalla del mapa 
@@ -99,9 +107,16 @@ def ventanajuego():
         fdesierto.create_image(0,0,anchor='nw', image=fd_img) 
         fdesierto.image = fd_img
 
+        #Camello pelea
+        camello = cargarImg("camello.png", size=(200,300))
+        fdesierto.create_image(400,500, anchor='nw', image=camello)
+        fdesierto.image = camello
+
+
     playdesert = cargarImg("DesiertoP.jpg", size=(350,190))
     Button(fjuego, text="desierto", image=playdesert, fg= "#970f0f", command=mapa_desierto).place(x=100, y=200)
     Image.open (playdesert)
+
 
 
 Button(canva, text="Jugar", fg="#206d91", font=('Agency FB',14),
