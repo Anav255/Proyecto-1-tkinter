@@ -71,9 +71,35 @@ Label(canvas, text="Seleccione 3 animales", font=('Agency FB',14),
       bg="#77b67c", fg='black').place(x=1150,y=50)
 
 CamelloP = cargarImg("Camello.png", size=(80,120))
-Button(canvas, text="Camello", image=CamelloP, fg= "#970f0f").place(x=1100, y=100)
+Button(canvas, text="Camello", image=CamelloP, fg= "#970f0f", command=B_animales).place(x=1100, y=100)
 PhotoImage = CamelloP
+AlacranP = cargarImg("alacran.png", size=(80,120))
+Button(canvas, text="alacran", image=AlacranP, fg= "#970f0f").place(x=1200, y=100)
+PhotoImage = AlacranP
+AvestruzP = cargarImg("avestruz.png", size=(80,120))
+Button(canvas, text="avestruz", image=AvestruzP, fg= "#970f0f").place(x=1300, y=100)
+PhotoImage = AvestruzP
+BuhoP = cargarImg("buho.png", size=(80,120))
+Button(canvas, text="lince", image=BuhoP, fg= "#970f0f").place(x=1100, y=250)
+PhotoImage = BuhoP
+ZorroP = cargarImg("zorro.png", size=(80,120))
+Button(canvas, text="lince", image=ZorroP, fg= "#970f0f").place(x=1200, y=250)
+PhotoImage = ZorroP
+OsoP = cargarImg("oso.png", size=(80,120))
+Button(canvas, text="lince", image=OsoP, fg= "#970f0f").place(x=1300, y=250)
+PhotoImage = OsoP
 
+botones1 = [ AvestruzP, OsoP]
+botones2 = [CamelloP, BuhoP]
+botones3 = [AlacranP, ZorroP]
+Clic = 0
+def B_animales():
+    global Clic 
+    Clic += 1 
+    if Clic >= 3: 
+        return botones.config(text="Límite alcanzado", state=DISABLED)
+    else:
+        botones.config(text=f"Clics: ¨{Clic}")
 
 # -----------------------------------------
 # Pantalla del mapa 
