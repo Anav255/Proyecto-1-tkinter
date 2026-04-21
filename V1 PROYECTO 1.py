@@ -21,7 +21,7 @@ def cargarImg(nombre, size=None):
         img = img.resize(size, Image.LANCZOS)
     return ImageTk.PhotoImage(img)
 
-img = cargarImg("Laboratorio.png")
+img = cargarImg("Paisaje.png")
 canvas.image = img
 canvas.create_image(0, 0, anchor='nw', image=img)
 
@@ -62,10 +62,18 @@ Version: 1
 # -----------------------------------------
 # botones
 # -----------------------------------------
+
+#Personajes
 Label(canvas, text="Seleccione un personaje", font=('Agency FB',14), 
       bg="#77b67c", fg='black').place(x=130,y=200)
+#Animales 
 Label(canvas, text="Seleccione 3 animales", font=('Agency FB',14), 
       bg="#77b67c", fg='black').place(x=1150,y=50)
+
+CamelloP = cargarImg("Camello.png", size=(80,120))
+Button(canvas, text="Camello", image=CamelloP, fg= "#970f0f").place(x=1100, y=100)
+PhotoImage = CamelloP
+
 
 # -----------------------------------------
 # Pantalla del mapa 
@@ -103,17 +111,16 @@ def ventanajuego():
         fdesierto = Canvas(desierto, width=1500, height=800)
         fdesierto.pack()
 
-        fd_img = cargarImg("DesiertoG.jpg", size=(1500,800))
+        fd_img = cargarImg("DesertG.jpg", size=(1500,800))
         fdesierto.create_image(0,0,anchor='nw', image=fd_img) 
         fdesierto.image = fd_img
 
         #Camello pelea
-        camello = cargarImg("camello.png", size=(200,300))
-        fdesierto.create_image(400,500, anchor='nw', image=camello)
+        camello = cargarImg("camello.png", size=(300,400))
+        fdesierto.create_image(1000,450, anchor='nw', image=camello)
         fdesierto.image = camello
 
-
-    playdesert = cargarImg("DesiertoP.jpg", size=(350,190))
+    playdesert = cargarImg("DesertP.jpg", size=(350,190))
     Button(fjuego, text="desierto", image=playdesert, fg= "#970f0f", command=mapa_desierto).place(x=100, y=200)
     Image.open (playdesert)
 
