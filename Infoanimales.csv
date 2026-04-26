@@ -1,0 +1,16 @@
+﻿nombre;vida;atq;defen;mundo
+oso;300;30;10;B
+zorro;170;20;10;B
+buho;200;10;30;B
+avestruz;100;30;10;D
+camello;200;10;30;D
+alacran;80;20;20;D
+pelicano;150;30;10;P
+tortuga;200;15;35;P
+cangrejo;80;28;10;P
+reno;200;30;20;M
+lince;300;20;10;M
+yak;300;20;30;M
+leon;200;35;10;S
+jirafa;300;15;20;S
+serpiente;80;30;10;S

@@ -2,7 +2,7 @@ from tkinter import *
 from PIL import Image, ImageTk
 import os
 import random
-
+import csv
 
 # -----------------------------------------
 # canva
@@ -30,8 +30,8 @@ canvas.create_image(0, 0, anchor='nw', image=img)
 
 Label(canvas, text="Ingrese su nombre: ", font=('Times New Roman',14), 
       bg="#f8f8f8", fg='black').place(x=130,y=80)
-nombre = Entry(canvas, width=20, font=('Agency FB',14))
-nombre.place(x=130,y=105)
+nombre1 = Entry(canvas, width=20, font=('Agency FB',14))
+nombre1.place(x=130,y=105)
 
 
 # Texto About
@@ -42,7 +42,7 @@ def infocanva():
     info.title("Información")
     info.resizable(width=NO,height=NO)
 
-    Canvainfo = Canvas(info, width=319, height=190)
+    Canvainfo = Canvas(info, width=285, height=170)
     Canvainfo.pack()
 
     Label(Canvainfo, text=about, font=('Times New Roman',14), bg="#73b1ca", fg='black', borderwidth=10, justify='center').place(x=0,y=0)
@@ -168,33 +168,38 @@ def animalpelea(opciones):
     nombre3 = opciones["text"]
     animal3 = botones[nombre3]
     if animal3 in Animales:
-        return Animales.append(opciones)
+        Animales.append(animal3)
     desha_animales(botones, 0, opciones)
 
-# Caracteristicas de los animales 
-{
-    "camello": {"vida": 200, "atq": 10, "defen":30},
-    "alacran": {"vida": 80, "atq": 20, "defen":20},
-    "avestruz": {"vida": 100, "atq": 30, "defen":10},
-    "buho": {"vida": 200, "atq": 10, "defen":30},
-    "zorro": {"vida": 170, "atq": 20, "defen":10},
-    "oso": {"vida": 300, "atq": 30, "defen":10},
-    "tortuga": {"vida": 200, "atq": 15, "defen":35},
-    "pelicano": {"vida": 150, "atq": 30, "defen":20},
-    "cangrejo": {"vida": 80, "atq": 28, "defen":10},
-    "leon": {"vida": 200, "atq": 35, "defen":10},
-    "jirafa": {"vida": 300, "atq": 15, "defen":20},
-    "serpiente": {"vida": 80, "atq": 30, "defen":10},
-    "lince": {"vida": 300, "atq": 20, "defen":10},
-    "reno": {"vida": 200, "atq": 30, "defen":20},
-    "yak": {"vida": 300, "atq": 20, "defen":30}
-}
+# Información de los animales
+class Animal:
+    def __init__(self, nombre, vida, atq, defen, mundo):
+        self.nombre = nombre
+        self.vida = vida
+        self.atq = atq
+        self.defen = defen
+        self.mundo = mundo
 
-
+def info_animales(ruta):
+    with open(ruta, "r", encoding="utf-8-sig") as archivo:
+        lector = csv.DictReader(archivo, delimiter=";")
+    
+        return list(map(
+            lambda fila: Animal(
+                nombre  = fila["nombre"],
+                vida    = int(fila["vida"]),
+                atq  = int(fila["atq"]),
+                defen = int(fila["defen"]),
+                mundo = fila["mundo"]
+            ),
+            lector
+        ))
+    
+        
 # -----------------------------------------
 # Pantalla del mapa 
 # -----------------------------------------
-
+list_desierto = None
 def ventanajuego(nombre_jugador):
     canva.withdraw()
 
@@ -206,19 +211,20 @@ def ventanajuego(nombre_jugador):
     fjuego = Canvas(Mundos, width=1500, height=800)
     fjuego.pack()
 
-    fp_img = cargarImg("cosmos.jpeg", size= (1500, 800))
+    fp_img = cargarImg("fondoprincipal.jpg", size= (1500, 800))
     fjuego.create_image(0,0,anchor='nw', image=fp_img) 
     fjuego.image = fp_img 
     #Nombre jugador
     L_nombre = Label(fjuego, text=f"Jugador:\n {nombre_jugador} ", font=('Times New Roman',16), fg='white', bg='#353a4e')
     L_nombre.place(x=50, y=550)
-    #Personaje REVISARREVISARREVISARREVISARREVISARREVISAR
+    
+    #Personaje PENDIENTE REVISAR 
     global Personaje
 
-    L_Personaje = Label(fjuego, image=Personaje, text="Personaje", font=('Times New Roman',18), bg="#000000", fg="white", borderwidth=15, justify='left')
+    L_Personaje = Label(fjuego, image=Personaje, text="Personaje", font=('Times New Roman',18), bg="#000000", fg="white", borderwidth=15, justify='center')
     L_Personaje.place(x=50, y=600)
-    #Titulo de los mundos
-    Label(fjuego, text="Mapa", font=('Times New Roman',18), bg="#000000", fg="white", borderwidth=15, justify='center').place(x=700, y=50)
+    #Titulo MAPA
+    Label(fjuego, text="Mapa", font=('Times New Roman',18), bg="#000000", fg="white", borderwidth=15, justify='center').place(x=500, y=50)
 
 
     #Boton Primer mundo - DESIERTO 
@@ -237,22 +243,48 @@ def ventanajuego(nombre_jugador):
         fdesierto.create_image(0,0,anchor='nw', image=fd_img) 
         fdesierto.image = fd_img
 
-        #Camello pelea
-        camello = cargarImg("camello.png", size=(300,400))
-        fdesierto.create_image(1000,400, anchor='nw', image=camello)
-        fdesierto.image = camello 
-
+        #Random enemigo
         
+        def enemigo_desierto():
+            global list_desierto
+            if list_desierto is None:
+                Eanimales = info_animales("Infoanimales.csv")
+                list_desierto = list(filter(lambda a: a.mundo == "D", Eanimales))
+            if len(list_desierto) == 0:
+                desierto.destroy()
+                Mundos.deiconify()
+                return
+            enemigo = random.choice(list_desierto)
+            list_desierto.remove(enemigo)
+            imgD_enemigo = cargarImg(f"{enemigo.nombre}.png", size=(300, 350))
+            fdesierto.imgD_enemigo = imgD_enemigo
+            fdesierto.create_image(1000, 600, image=imgD_enemigo)
+            fdesierto.create_text(140, 100, text=enemigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="enemigo")
+            fdesierto.create_text(140, 150, text=f"Vida: {enemigo.vida}", font=("Times New Roman", 18, "bold"), fill="red", tags="enemigo")
+
+        enemigo_desierto()
+
+        #El animal para pelear escogido
+        
+
+ 
 
     playdesert = cargarImg("DesiertoP.jpg", size=(350,190))
     Button(fjuego, text="desierto", image=playdesert, command=mapa_desierto).place(x=100, y=200)
-    Image.open (playdesert)
+    fjuego.playdesert = playdesert
+
+    #Botón para devolverse 
+    def atras():
+        Mundos.destroy()
+        canva.deiconify()
+    Btn_atras = Button(fjuego, text="Atras", bg="#3e4d58",fg="white", font=('Times New Roman',16), command=atras)
+    Btn_atras.place(x=100, y=60)
 
 def empezar_juego():
-    nombre1 = nombre.get()
-    ventanajuego(nombre1)
+    nombre2 = nombre1.get()
+    ventanajuego(nombre2)
 
-Button(canva, text="Jugar", fg="#000000", font=('Times New Roman',14),command=empezar_juego).place(x=280,y=140)
+Button(canva, text="Jugar", fg="#000000", font=('Times New Roman',14), command=empezar_juego).place(x=280,y=140)
 
 
 canva.mainloop()
