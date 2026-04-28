@@ -3,7 +3,8 @@ from PIL import Image, ImageTk
 import os
 import random
 import csv
-
+from tkinter import messagebox
+import threading
 # -----------------------------------------
 # canva
 # -----------------------------------------
@@ -62,13 +63,13 @@ Version: 1
 #Personajes
 Label(canvas, text="Seleccione un personaje", font=('Times New Roman',18), bg="#CAD4E2", fg='black').place(x=130,y=220)
 Personaje1 = cargarImg("personaje1.png", size=(130,300))
-b_1 = Button(canvas, image=Personaje1, command=lambda: desha_personajes(personajes, 0, b_1))
+b_1 = Button(canvas, image=Personaje1, command=lambda: personajepelea(b_1, Personaje1))
 b_1.place(x=100, y=300)
 Personaje2 = cargarImg("personaje2.png", size=(130,300))
-b_2 = Button(canvas, image=Personaje2, command=lambda: desha_personajes(personajes, 0, b_2))
+b_2 = Button(canvas, image=Personaje2, command=lambda: personajepelea(b_2, Personaje2))
 b_2.place(x=250, y=300)
 Personaje3 = cargarImg("personaje3.png", size=(130,300))
-b_3= Button(canvas, image=Personaje3, command=lambda: desha_personajes(personajes, 0, b_3))
+b_3= Button(canvas, image=Personaje3, command=lambda: personajepelea(b_3, Personaje3))
 b_3.place(x=400, y=300)
 
 personajes = [b_1, b_2, b_3]
@@ -82,16 +83,14 @@ def desha_personajes(lista, l, boton):
         p.config(relief="raised", state=NORMAL)
     desha_personajes(lista, l + 1, boton)
 
-Personaje = []
-def personajepelea(opciones):
+Personaje = None
+def personajepelea(opciones, imagen):
     global Personaje
-    if opciones in Personaje:
-        return Personaje.clear()
-    Personaje.append(opciones)
+    Personaje = imagen
     desha_personajes(personajes, 0, opciones)
 #Animales 
-Label(canvas, text="Seleccione 3 animales", font=('Times New Roman',14), 
-      bg="#77b67c", fg='black').place(x=1150,y=50)
+Label(canvas, text="Seleccione 1 animal por columna", font=('Times New Roman',14), 
+      bg="#77b67c", fg='black').place(x=1120,y=50)
 
 CamelloP = cargarImg("Camello.png", size=(80,120))
 b_ca = Button(canvas, text="camello", image=CamelloP,command=lambda: animalpelea(b_ca))
@@ -162,7 +161,6 @@ def desha_botones(botones, j, animal):
         botones[j].config(relief="raised",state=NORMAL)
     desha_botones(botones, j + 1, animal)
 
-
 Animales = []
 def animalpelea(opciones):
     global Animales
@@ -187,21 +185,20 @@ class Animal:
         self.defen = defen
         self.mundo = mundo
 
+def crear_animal(fila):
+    animal = Animal(
+        nombre = fila["nombre"],
+        vida   = int(fila["vida"]),
+        atq    = int(fila["atq"]),
+        defen  = int(fila["defen"]),
+        mundo  = fila["mundo"]
+    )
+    animal.vida_max = animal.vida
+    return animal
 def info_animales(ruta):
     with open(ruta, "r", encoding="utf-8-sig") as archivo:
         lector = csv.DictReader(archivo, delimiter=";")
-    
-        return list(map(
-            lambda fila: Animal(
-                nombre  = fila["nombre"],
-                vida    = int(fila["vida"]),
-                atq  = int(fila["atq"]),
-                defen = int(fila["defen"]),
-                mundo = fila["mundo"]
-            ),
-            lector
-        ))
-
+        return list(map(crear_animal, lector))
 list_animales = info_animales("Infoanimales.csv")
 
 def diccionario(lista, i=0):
@@ -219,15 +216,21 @@ b_nombres = {
     b_to: "tortuga", b_pe: "pelicano",b_can: "cangrejo",
     b_le: "leon",    b_ji: "jirafa",  b_co: "cobra",
     b_li: "lince",   b_ya: "yak",     b_re: "reno"}
+
+#listas de mundos        
+mundos = [
+    {"nombre": "desierto","codigo": "D", "completado": False},
+    {"nombre": "playa","codigo": "P", "completado": False},
+    {"nombre": "sabana", "codigo": "S", "completado": False},
+    {"nombre": "bosque", "codigo": "B", "completado": False},
+    {"nombre": "montaña", "codigo": "M", "completado": False},
+]
 # -----------------------------------------
 # Pantalla del mapa 
 # -----------------------------------------
-list_desierto = None
+capturados = []
+list_enemigos = None
 Denemigo = None
-MapaD = False
-list_playa = None
-Penemigo = None
-MapaP = False
 def ventanajuego(nombre_jugador):
     canva.withdraw()
 
@@ -246,214 +249,206 @@ def ventanajuego(nombre_jugador):
     L_nombre = Label(fjuego, text=f"Jugador:\n {nombre_jugador} ", font=('Times New Roman',16), fg='white', bg='#353a4e')
     L_nombre.place(x=50, y=550)
     
-    #Personaje PENDIENTE REVISAR 
+    #Imagen personaje 
     global Personaje
-
     L_Personaje = Label(fjuego, image=Personaje, text="Personaje", font=('Times New Roman',18), bg="#000000", fg="white", borderwidth=15, justify='center')
     L_Personaje.place(x=50, y=600)
+    L_Personaje.image = Personaje
+
     #Titulo MAPA
-    Label(fjuego, text="Mapa", font=('Times New Roman',18), bg="#000000", fg="white", borderwidth=15, justify='center').place(x=500, y=50)
+    Label(fjuego, text="Mapa", font=('Times New Roman',18), bg="#000000", fg="white", borderwidth=15, justify='left').place(x=700, y=50)
 
     # -----------------------------------------
-    #Primer mundo - DESIERTO 
+    #MUNDOS
     # -----------------------------------------
-    def mapa_desierto():
+    b_mundos = []
+
+    def CbMundos(mundos, i):
+        if i >= len(mundos):
+            return
+        b = Button(fjuego, text=f"Mundo {i+1}", state="disabled", command=lambda i=i: mapa(mundos[i]))
+        b.pack()
+        b_mundos.append(b)
+        CbMundos(mundos, i + 1)
+
+    def desbloquearM(lista, i, mundo_actual):
+        if i >= len(lista):
+            return
+        if lista[i] == mundo_actual:
+            if i + 1 < len(lista) and i + 1 < len(b_mundos):
+                b_mundos[i + 1].config(state="normal")
+            return
+        desbloquearM(lista, i + 1, mundo_actual)
+
+    def Cmundo(mundo):
+        mundo["completado"] = True
+        Cmundo(mundos[0])
+        desbloquearM(mundos, 0, mundo)
+        
+    def mapa(mundo):
+        if mundo["completado"]:
+            return
+        global Denemigo, AmigoD, list_enemigos
+        list_enemigos = None
         Mundos.withdraw()
 
-        desierto = Toplevel()
-        desierto.title("desierto")
-        desierto.minsize(1500, 800)
-        desierto.resizable(width=NO, height=NO)
+        ventana = Toplevel()
+        ventana.title(mundo["nombre"])
+        ventana.minsize(1500, 800)
+        ventana.resizable(width=NO, height=NO)
 
-        fdesierto = Canvas(desierto, width=1500, height=800)
-        fdesierto.pack()
+        fondo = Canvas(ventana, width=1500, height=800)
+        fondo.pack()
 
-        fd_img = cargarImg("DesiertoG.jpg", size=(1500,800))
-        fdesierto.create_image(0,0,anchor='nw', image=fd_img) 
-        fdesierto.image = fd_img
+        fd_img = cargarImg(f"{mundo['nombre']}G.jpg", size=(1500,800))
+        fondo.create_image(0,0,anchor='nw', image=fd_img) 
+        fondo.image = fd_img
 
+        def Cl_animal(enemigo):
+            clonar = type(enemigo)(
+            enemigo.nombre,
+            enemigo.vida_max,
+            enemigo.atq,
+            enemigo.defen,
+            enemigo.mundo)
+            clonar.vida_max = enemigo.vida_max
+            return clonar
+        
         #Random enemigo
         
-        def enemigo_desierto():
-            global list_desierto, Denemigo, MapaD
-            if list_desierto is None:
+        def enemigo_P(mundo):
+            global Denemigo, list_enemigos, capturados
+            if list_enemigos is None:
                 Eanimales = info_animales("Infoanimales.csv")
-                list_desierto = list(filter(lambda a: a.mundo == "D", Eanimales))
-            if len(list_desierto) == 0:
-                MapaD = True
-                desierto.destroy()
+                list_enemigos = list(filter(lambda a: a is not None and a.mundo == mundo["codigo"] and a.nombre not in capturados, Eanimales))
+            if not list_enemigos:
+                mundo["completado"] = True
+                i = mundos.index(mundo)
+                if i < len(b_mundos):
+                    b_mundos[i].config(state="disabled")
+                ventana.destroy()
                 Mundos.deiconify()
+                desbloquearM(mundos, 0, mundo)
                 BPlaya()
+                BSabana()
+                Bbosque()
+                Bmontaña()
                 return
-            Denemigo = random.choice(list_desierto)
-            list_desierto.remove(Denemigo)
+            
+            enemigo_base = random.choice(list_enemigos)
+            list_enemigos.remove(enemigo_base)
+            Denemigo = Cl_animal(enemigo_base)
             imgD_enemigo = cargarImg(f"{Denemigo.nombre}.png", size=(300, 350))
-            fdesierto.imgD_enemigo = imgD_enemigo
-            fdesierto.create_image(1000, 600, image=imgD_enemigo)
-            fdesierto.create_text(140, 100, text=Denemigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="enemigo")
-            fdesierto.create_text(140, 150, text=f"Vida: {Denemigo.vida}", font=("Times New Roman", 18, "bold"), fill="red", tags="enemigo")
+            fondo.imgD_enemigo = imgD_enemigo
+            fondo.create_image(1000, 600, image=imgD_enemigo)
+            fondo.create_text(140, 100, text=Denemigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="enemigo")
+            fondo.create_text(140, 150, text=f"Vida: {Denemigo.vida}", font=("Times New Roman", 18, "bold"), fill="red", tags="enemigo")
 
-        enemigo_desierto()
+        enemigo_P(mundo)
 
         #El animal para pelear escogido
-        def animales_para_pelearD():
+        def amigo_P():
             global AmigoD
-            print(f"Animales = {Animales}")
             if len(Animales) == 0:
-                desierto.destroy()
+                ventana.destroy()
                 Mundos.deiconify()
                 return None
-            
-            fdesierto.delete("amigo")
-            fdesierto.delete("animal_img")
+            fondo.delete("amigo")
+            fondo.delete("animal_img")
             AmigoD = Animales[0]
             imgAnimal = cargarImg(f"{AmigoD.nombre}.png", size=(330, 390))
-            fdesierto.imgAnimal = imgAnimal
-            fdesierto.create_image(200, 600, image=imgAnimal, tags="animal_img")
-            fdesierto.create_text(140, 200, text=AmigoD.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="amigo")
-            fdesierto.create_text(140, 250, text=f"Vida: {AmigoD.vida}", font=("Times New Roman", 18, "bold"), fill="white", tags="amigo")
-            return AmigoD
+            fondo.imgAnimal = imgAnimal
+            fondo.create_image(200, 600, image=imgAnimal, tags="animal_img")
+            fondo.create_text(140, 200, text=AmigoD.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="amigo")
+            fondo.create_text(140, 250, text=f"Vida: {AmigoD.vida}", font=("Times New Roman", 18, "bold"), fill="white", tags="amigo")
+        amigo_P()
         
-        animales_para_pelearD()
-        
-        #PELEA DESIERTO
+        #PELEA
         def daño_amigo(amigo, enemigo):
             if len(Animales) == 0:
-                return animales_para_pelearD()
+                return amigo_P()
+            if amigo.vida <= 0:
+                Animales.pop(0)
+                amigo_P()
+                return 
             else: 
-                if amigo.vida <= 0:
-                    Animales.pop(0)
-                    animales_para_pelearD()
-                    return 
-                else: 
-                    daño = int(amigo.atq * (enemigo.defen / 100))
-                    enemigo.vida = max(0, enemigo.vida - daño) 
-                    fdesierto.delete("enemigo")
-                    fdesierto.create_text(140, 100, text=Denemigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="enemigo")
-                    fdesierto.create_text(140, 150, text=f"Vida: {Denemigo.vida}", font=("Times New Roman", 18, "bold"), fill="red", tags="enemigo")
-                    fdesierto.after(500, lambda: enemigo_daño(Animales[0], Denemigo))
+                daño = int(amigo.atq * (enemigo.defen / 10))
+                enemigo.vida = max(0, enemigo.vida - daño) 
+                fondo.delete("enemigo")
+                fondo.create_text(140, 100, text=Denemigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="enemigo")
+                fondo.create_text(140, 150, text=f"Vida: {Denemigo.vida}", font=("Times New Roman", 18, "bold"), fill="red", tags="enemigo")
+                fondo.after(500, lambda: enemigo_daño(Animales[0], Denemigo, mundos[0]))
             
-        def enemigo_daño(amigo, enemigo):
-            if len(list_desierto)== 0:
-                return enemigo_desierto()
-            else: 
-                if enemigo.vida <= 0:
-                    enemigo_desierto()
-                    return
-                else: 
-                    daño = int(enemigo.atq * (amigo.defen / 100))
-                    amigo.vida = max(0, amigo.vida - daño)
-                    fdesierto.delete("amigo")
-                    fdesierto.create_text(140, 200, text=amigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="amigo")
-                    fdesierto.create_text(140, 250, text=f"Vida: {amigo.vida}", font=("Times New Roman", 18, "bold"), fill="white", tags="amigo")
-                    return
-            
-        Button(fdesierto, text="Atacar", command=lambda: daño_amigo(Animales[0], Denemigo)).place(x=1000, y=400)
-    playdesert = cargarImg("DesiertoP.jpg", size=(350,190))
-    Button(fjuego, text="desierto", image=playdesert, command=mapa_desierto).place(x=100, y=200)
-    fjuego.playdesert = playdesert
-
-    # -----------------------------------------
-    #Segundo mundo - PLAYA 
-    # -----------------------------------------
-
-    def mapa_playa():
-        Mundos.withdraw()
-
-        playa = Toplevel()
-        playa.title("Playa")
-        playa.minsize(1500, 800)
-        playa.resizable(width=NO, height=NO)
-
-        fplaya = Canvas(playa, width=1500, height=800)
-        fplaya.pack()
-
-        fd_img2 = cargarImg("PlayaG.jpg", size=(1500,800))
-        fplaya.create_image(0,0,anchor='nw', image=fd_img2) 
-        fplaya.image = fd_img2
-        def enemigo_playa():
-            global list_playa, Penemigo, MapaP
-            if list_playa is None:
-                Eanimales = info_animales("Infoanimales.csv")
-                list_desierto = list(filter(lambda a: a.mundo == "P", Eanimales))
-            if len(list_desierto) == 0:
-                MapaP = True
-                playa.destroy()
-                Mundos.deiconify()
-     ###############################################################################
+        def enemigo_daño(amigo, enemigo, mundo):
+            global capturados
+            if enemigo.vida <= 0:
+                Animales.append(Cl_animal(Denemigo))
+                capturados.append(Denemigo.nombre)
+                enemigo_P(mundo)
                 return
-            Penemigo = random.choice(list_playa)
-            list_playa.remove(Penemigo)
-            imgP_enemigo = cargarImg(f"{Penemigo.nombre}.png", size=(300, 350))
-            fplaya.imgD_enemigo = imgP_enemigo
-            fplaya.create_image(1000, 600, image=imgP_enemigo)
-            fplaya.create_text(140, 100, text=Denemigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="enemigo")
-            fplaya.create_text(140, 150, text=f"Vida: {Denemigo.vida}", font=("Times New Roman", 18, "bold"), fill="red", tags="enemigo")
-
-        enemigo_playa()
-
-        #El animal para pelear escogido
-        def animales_para_pelearP():
-            global AmigoP
-            print(f"Animales = {Animales}")
-            if len(Animales) == 0:
-                playa.destroy()
-                Mundos.deiconify()
-                return None
-            
-            fplaya.delete("amigo")
-            fplaya.delete("animal_img")
-            AmigoP = Animales[0]
-            imgAnimal = cargarImg(f"{AmigoP.nombre}.png", size=(330, 390))
-            fplaya.imgAnimal = imgAnimal
-            fplaya.create_image(200, 600, image=imgAnimal, tags="animal_img")
-            fplaya.create_text(140, 200, text=AmigoP.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="amigo")
-            fplaya.create_text(140, 250, text=f"Vida: {AmigoP.vida}", font=("Times New Roman", 18, "bold"), fill="white", tags="amigo")
-            return AmigoP
-        
-        animales_para_pelearP()
-        
-        #PELEA DESIERTO
-        def daño_amigo(amigo, enemigo):
-            if len(Animales) == 0:
-                return animales_para_pelearP()
             else: 
-                if amigo.vida <= 0:
-                    Animales.pop(0)
-                    animales_para_pelearP()
-                    return 
-                else: 
-                    daño = int(amigo.atq * (enemigo.defen / 100))
-                    enemigo.vida = max(0, enemigo.vida - daño) 
-                    fplaya.delete("enemigo")
-                    fplaya.create_text(140, 100, text=Denemigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="enemigo")
-                    fplaya.create_text(140, 150, text=f"Vida: {Denemigo.vida}", font=("Times New Roman", 18, "bold"), fill="red", tags="enemigo")
-                    fplaya.after(500, lambda: enemigo_daño(Animales[0], Denemigo))
-            
-        def enemigo_daño(amigo, enemigo):
-            if len(list_playa)== 0:
-                return enemigo_playa()
-            else: 
-                if enemigo.vida <= 0:
-                    enemigo_playa()
-                    return
-                else: 
-                    daño = int(enemigo.atq * (amigo.defen / 100))
-                    amigo.vida = max(0, amigo.vida - daño)
-                    fplaya.delete("amigo")
-                    fplaya.create_text(140, 200, text=amigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="amigo")
-                    fplaya.create_text(140, 250, text=f"Vida: {amigo.vida}", font=("Times New Roman", 18, "bold"), fill="white", tags="amigo")
-                    return
-
-    #Botón playa
+                daño = int(enemigo.atq * (amigo.defen / 10))
+                amigo.vida = max(0, amigo.vida - daño)
+                fondo.delete("amigo")
+                fondo.create_text(140, 200, text=amigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="amigo")
+                fondo.create_text(140, 250, text=f"Vida: {amigo.vida}", font=("Times New Roman", 18, "bold"), fill="white", tags="amigo")
+                return      
+        Button(fondo, text="Atacar", command=lambda: daño_amigo(Animales[0], Denemigo)).place(x=1000, y=400)
+    #Boton desierto
+    
+    playdesert = cargarImg("DesiertoP.jpg", size=(350,190))
+    Button(fjuego, text="desierto", image=playdesert, command=lambda: mapa(mundos[0])).place(x=100, y=200)
+    fjuego.playdesert = playdesert
+    #Boton playa
     def BPlaya():
-        if MapaD == True:
+        global mundos
+        if mundos[0]["completado"]:
             jugarplaya = cargarImg("PlayaP.jpg", size=(350,190))
-            Button(fjuego, text="playa", image=jugarplaya, command=mapa_playa).place(x=400, y=500)
+            Button(fjuego, text="playa", image=jugarplaya, command=lambda: mapa(mundos[1])).place(x=300, y=500)
             fjuego.jugarplaya = jugarplaya
         else:
             print("falta completar el desierto")
-        BPlaya()
+    BPlaya()
+    #Boton sabana
+    def BSabana():
+        global mundos
+        if mundos[1]["completado"]:
+            jugarsabana = cargarImg("SabanaP.jpg", size=(350,190))
+            Button(fjuego, text="sabana", image=jugarsabana, command=lambda: mapa(mundos[2])).place(x=550, y=200)
+            fjuego.jugarsabana = jugarsabana
+        else:
+            print("falta completar la playa")
+    BSabana()
+    #Boton bosque
+    def Bbosque():
+        global mundos
+        if mundos[2]["completado"]:
+            jugarbosque = cargarImg("BosqueP.jpg", size=(350,190))
+            Button(fjuego, text="sabana", image=jugarbosque, command=lambda: mapa(mundos[3])).place(x=700, y=500)
+            fjuego.jugarbosque = jugarbosque
+        else:
+            print("falta completar la sabana")
+    Bbosque()
+    #Boton montaña
+    def Bmontaña():
+        global mundos
+        if mundos[3]["completado"]:
+            jugarbosque = cargarImg("MontañaP.jpg", size=(350,190))
+            Button(fjuego, text="sabana", image=jugarbosque, command=lambda: mapa(mundos[4])).place(x=1000, y=200)
+            fjuego.jugarbosque = jugarbosque
+        else:
+            print("falta completar el bosque")
+    Bmontaña()
+    #Mensaje final
+    def resultado():
+        global mundos
+        if mundos[4]["completado"]:
+            messagebox.showinfo("Felicidades", "¡Felicidades has ganado!")
+            yesno = messagebox.askyesno("Confirmar", "¿Jugar de nuevo?")
+            if yesno:
+                threading.Thread(target=resultado).start()
+        else:
+            return 
 
     #Botón para devolverse 
     def atras():
@@ -461,7 +456,7 @@ def ventanajuego(nombre_jugador):
         canva.deiconify()
     Btn_atras = Button(fjuego, text="Atras", bg="#3e4d58",fg="white", font=('Times New Roman',16), command=atras)
     Btn_atras.place(x=100, y=60)
-
+    threading.Thread(target=resultado).start()
 def empezar_juego():
     nombre2 = nombre1.get()
     ventanajuego(nombre2)
