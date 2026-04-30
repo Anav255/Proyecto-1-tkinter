@@ -166,7 +166,7 @@ def animalpelea(opciones):
     global Animales
     nombreA = b_nombres[opciones]
     Aanimal = dic_animales[nombreA]
-    if Aanimal not in Animales:
+    if len(Animales) < 3 and Aanimal not in Animales:
         Animales.append(Aanimal)
     desha_animales(botones, 0, opciones)
     print(f"Animales = {nombres_animales(Animales)}")
@@ -229,6 +229,7 @@ mundos = [
 # Pantalla del mapa 
 # -----------------------------------------
 capturados = []
+proximos = []
 list_enemigos = None
 Denemigo = None
 def ventanajuego(nombre_jugador):
@@ -323,6 +324,8 @@ def ventanajuego(nombre_jugador):
                 list_enemigos = list(filter(lambda a: a is not None and a.mundo == mundo["codigo"] and a.nombre not in capturados, Eanimales))
             if not list_enemigos:
                 mundo["completado"] = True
+                Animales.extend(proximos)
+                proximos.clear()
                 i = mundos.index(mundo)
                 if i < len(b_mundos):
                     b_mundos[i].config(state="disabled")
@@ -382,7 +385,7 @@ def ventanajuego(nombre_jugador):
         def enemigo_daño(amigo, enemigo, mundo):
             global capturados
             if enemigo.vida <= 0:
-                Animales.append(Cl_animal(Denemigo))
+                proximos.append(Cl_animal(Denemigo))
                 capturados.append(Denemigo.nombre)
                 enemigo_P(mundo)
                 return
@@ -440,23 +443,33 @@ def ventanajuego(nombre_jugador):
             print("falta completar el bosque")
     Bmontaña()
     #Mensaje final
+    def reiniciar_juego():
+        threading.Thread(target=resultado).start()
+
     def resultado():
-        global mundos
-        if mundos[4]["completado"]:
-            messagebox.showinfo("Felicidades", "¡Felicidades has ganado!")
+        global mundos, Animales
+        if mundos[5]["completado"]:
+            messagebox.showinfo("Has ganado el juego", "Felicidades")
             yesno = messagebox.askyesno("Confirmar", "¿Jugar de nuevo?")
             if yesno:
-                threading.Thread(target=resultado).start()
-        else:
-            return 
-
+                reiniciar_juego()
+            else:
+                Mundos.quit()
+        if len(Animales) == 0:
+            messagebox.showinfo("Perdiste", "tu personaje murió")
+            yesno = messagebox.askyesno("Confirmar", "¿Jugar de nuevo?")
+            if yesno:
+                reiniciar_juego()
+            else:
+                Mundos.quit()
+    threading.Thread(target=resultado).start()
     #Botón para devolverse 
     def atras():
         Mundos.destroy()
         canva.deiconify()
     Btn_atras = Button(fjuego, text="Atras", bg="#3e4d58",fg="white", font=('Times New Roman',16), command=atras)
     Btn_atras.place(x=100, y=60)
-    threading.Thread(target=resultado).start()
+
 def empezar_juego():
     nombre2 = nombre1.get()
     ventanajuego(nombre2)
