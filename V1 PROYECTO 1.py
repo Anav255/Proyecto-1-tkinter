@@ -4,7 +4,6 @@ import os
 import random
 import csv
 from tkinter import messagebox
-import threading
 # -----------------------------------------
 # canva
 # -----------------------------------------
@@ -25,7 +24,6 @@ def cargarImg(nombre, size=None):
 img = cargarImg("fondo.jpg")
 canvas.image = img
 canvas.create_image(0, 0, anchor='nw', image=img)
-
 
 #Solicitar nombre
 
@@ -150,6 +148,7 @@ def desha_animales(listas, l, boton):
     lista = listas[l]
     if boton in lista:
         desha_botones(lista, 0, boton)
+        return
     desha_animales(listas, l + 1, boton)
 
 def desha_botones(botones, j, animal):
@@ -161,13 +160,34 @@ def desha_botones(botones, j, animal):
         botones[j].config(relief="raised",state=NORMAL)
     desha_botones(botones, j + 1, animal)
 
+def quitar_grupo(animales, grupo, i=0):
+    if i >= len(animales):
+        return []
+    
+    if animales[i].nombre in grupo:
+        return quitar_grupo(animales, grupo, i + 1)
+    else:
+        return [animales[i]] + quitar_grupo(animales, grupo, i + 1)
+def encontrar_grupo(listas, boton, i=0):
+    if i >= len(listas):
+        return []
+    if boton in listas[i]:
+        return listas[i]
+    return encontrar_grupo(listas, boton, i + 1)
+def nombres_botones(lista, i=0):
+    if i >= len(lista):
+        return []
+    return [b_nombres[lista[i]]] + nombres_botones(lista, i + 1)
 Animales = []
 def animalpelea(opciones):
     global Animales
     nombreA = b_nombres[opciones]
     Aanimal = dic_animales[nombreA]
+    grupo = encontrar_grupo(botones, opciones)
+    nombre_grupo = nombres_botones(grupo)
+    Animales = quitar_grupo(Animales, nombre_grupo)  
     if len(Animales) < 3 and Aanimal not in Animales:
-        Animales.append(Aanimal)
+        Animales.append(Aanimal)                    
     desha_animales(botones, 0, opciones)
     print(f"Animales = {nombres_animales(Animales)}")
 
@@ -271,6 +291,7 @@ def ventanajuego(nombre_jugador):
         b.pack()
         b_mundos.append(b)
         CbMundos(mundos, i + 1)
+    
 
     def desbloquearM(lista, i, mundo_actual):
         if i >= len(lista):
@@ -281,15 +302,10 @@ def ventanajuego(nombre_jugador):
             return
         desbloquearM(lista, i + 1, mundo_actual)
 
-    def Cmundo(mundo):
-        mundo["completado"] = True
-        Cmundo(mundos[0])
-        desbloquearM(mundos, 0, mundo)
-        
     def mapa(mundo):
         if mundo["completado"]:
             return
-        global Denemigo, AmigoD, list_enemigos
+        global Denemigo, AmigoD
         list_enemigos = None
         Mundos.withdraw()
 
@@ -316,14 +332,22 @@ def ventanajuego(nombre_jugador):
             return clonar
         
         #Random enemigo
+        def reset_enemigo(lista, i=0):
+            if i >= len(lista):
+                return
+            lista[i].vida = lista[i].vida_max
+            reset_enemigo(lista, i + 1)
         
         def enemigo_P(mundo):
-            global Denemigo, list_enemigos, capturados
+            nonlocal list_enemigos
+            global Denemigo, capturados
             if list_enemigos is None:
                 Eanimales = info_animales("Infoanimales.csv")
                 list_enemigos = list(filter(lambda a: a is not None and a.mundo == mundo["codigo"] and a.nombre not in capturados, Eanimales))
             if not list_enemigos:
                 mundo["completado"] = True
+                reset_enemigo(Animales)
+                reset_enemigo(proximos)
                 Animales.extend(proximos)
                 proximos.clear()
                 i = mundos.index(mundo)
@@ -336,10 +360,11 @@ def ventanajuego(nombre_jugador):
                 BSabana()
                 Bbosque()
                 Bmontaña()
+                resultado()
                 return
             
-            enemigo_base = random.choice(list_enemigos)
-            list_enemigos.remove(enemigo_base)
+            indice = random.randrange(len(list_enemigos))
+            enemigo_base = list_enemigos.pop(indice)
             Denemigo = Cl_animal(enemigo_base)
             imgD_enemigo = cargarImg(f"{Denemigo.nombre}.png", size=(300, 350))
             fondo.imgD_enemigo = imgD_enemigo
@@ -355,6 +380,7 @@ def ventanajuego(nombre_jugador):
             if len(Animales) == 0:
                 ventana.destroy()
                 Mundos.deiconify()
+                resultado()
                 return None
             fondo.delete("amigo")
             fondo.delete("animal_img")
@@ -380,10 +406,16 @@ def ventanajuego(nombre_jugador):
                 fondo.delete("enemigo")
                 fondo.create_text(140, 100, text=Denemigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="enemigo")
                 fondo.create_text(140, 150, text=f"Vida: {Denemigo.vida}", font=("Times New Roman", 18, "bold"), fill="red", tags="enemigo")
-                fondo.after(500, lambda: enemigo_daño(Animales[0], Denemigo, mundos[0]))
-            
+                if ventana.winfo_exists():
+                    def ejecutar_enemigo_daño():
+                        if ventana.winfo_exists():
+                            enemigo_daño(Animales[0], Denemigo, mundo)
+                    fondo.after(500, ejecutar_enemigo_daño)
+
         def enemigo_daño(amigo, enemigo, mundo):
             global capturados
+            if not ventana.winfo_exists():
+                return
             if enemigo.vida <= 0:
                 proximos.append(Cl_animal(Denemigo))
                 capturados.append(Denemigo.nombre)
@@ -393,12 +425,17 @@ def ventanajuego(nombre_jugador):
                 daño = int(enemigo.atq * (amigo.defen / 10))
                 amigo.vida = max(0, amigo.vida - daño)
                 fondo.delete("amigo")
+                if amigo.vida <= 0:
+                    Animales.pop(0)
+                    amigo_P()
+                    return
                 fondo.create_text(140, 200, text=amigo.nombre, font=("Times New Roman", 20, "bold"), fill="white", tags="amigo")
                 fondo.create_text(140, 250, text=f"Vida: {amigo.vida}", font=("Times New Roman", 18, "bold"), fill="white", tags="amigo")
-                return      
-        Button(fondo, text="Atacar", command=lambda: daño_amigo(Animales[0], Denemigo)).place(x=1000, y=400)
-    #Boton desierto
+                return
+        if len(Animales) > 0:
+            Button(fondo, text="Atacar", command=lambda: daño_amigo(Animales[0], Denemigo)).place(x=1000, y=400)
     
+    #Boton desierto
     playdesert = cargarImg("DesiertoP.jpg", size=(350,190))
     Button(fjuego, text="desierto", image=playdesert, command=lambda: mapa(mundos[0])).place(x=100, y=200)
     fjuego.playdesert = playdesert
@@ -407,18 +444,20 @@ def ventanajuego(nombre_jugador):
         global mundos
         if mundos[0]["completado"]:
             jugarplaya = cargarImg("PlayaP.jpg", size=(350,190))
-            Button(fjuego, text="playa", image=jugarplaya, command=lambda: mapa(mundos[1])).place(x=300, y=500)
-            fjuego.jugarplaya = jugarplaya
+            b_playa = Button(fjuego, text="playa", image=jugarplaya, command=lambda: mapa(mundos[1]))
+            b_playa.image = jugarplaya
+            b_playa.place(x=300, y=500)
         else:
             print("falta completar el desierto")
     BPlaya()
     #Boton sabana
     def BSabana():
-        global mundos
+        global mundos, btn_sabana
         if mundos[1]["completado"]:
             jugarsabana = cargarImg("SabanaP.jpg", size=(350,190))
-            Button(fjuego, text="sabana", image=jugarsabana, command=lambda: mapa(mundos[2])).place(x=550, y=200)
-            fjuego.jugarsabana = jugarsabana
+            b_sabana = Button(fjuego, text="sabana", image=jugarsabana, command=lambda: mapa(mundos[2]))
+            b_sabana.image = jugarsabana
+            b_sabana.place(x=550, y=200)
         else:
             print("falta completar la playa")
     BSabana()
@@ -427,42 +466,53 @@ def ventanajuego(nombre_jugador):
         global mundos
         if mundos[2]["completado"]:
             jugarbosque = cargarImg("BosqueP.jpg", size=(350,190))
-            Button(fjuego, text="sabana", image=jugarbosque, command=lambda: mapa(mundos[3])).place(x=700, y=500)
-            fjuego.jugarbosque = jugarbosque
+            b_bosque =Button(fjuego, text="bosque", image=jugarbosque, command=lambda: mapa(mundos[3]))
+            b_bosque.image = jugarbosque
+            b_bosque.place(x=700, y=500)
         else:
             print("falta completar la sabana")
     Bbosque()
     #Boton montaña
     def Bmontaña():
         global mundos
+        print(f"Estado bosque: {mundos[3]['completado']}")
         if mundos[3]["completado"]:
-            jugarbosque = cargarImg("MontañaP.jpg", size=(350,190))
-            Button(fjuego, text="sabana", image=jugarbosque, command=lambda: mapa(mundos[4])).place(x=1000, y=200)
-            fjuego.jugarbosque = jugarbosque
+            jugarmontaña = cargarImg("MontañaP.jpg", size=(350,190))
+            b_montaña = Button(fjuego, text="montaña", image=jugarmontaña, command=lambda: mapa(mundos[4]))
+            b_montaña.image = jugarmontaña
+            b_montaña.place(x=1000, y=200)
         else:
             print("falta completar el bosque")
     Bmontaña()
     #Mensaje final
     def reiniciar_juego():
-        threading.Thread(target=resultado).start()
+        global mundos, Animales
+        Animales = []  
+        mundos = [
+    {"nombre": "desierto","codigo": "D", "completado": False},
+    {"nombre": "playa","codigo": "P", "completado": False},
+    {"nombre": "sabana", "codigo": "S", "completado": False},
+    {"nombre": "bosque", "codigo": "B", "completado": False},
+    {"nombre": "montaña", "codigo": "M", "completado": False}]
 
     def resultado():
         global mundos, Animales
-        if mundos[5]["completado"]:
+        if mundos[4]["completado"]:
             messagebox.showinfo("Has ganado el juego", "Felicidades")
             yesno = messagebox.askyesno("Confirmar", "¿Jugar de nuevo?")
             if yesno:
                 reiniciar_juego()
             else:
                 Mundos.quit()
-        if len(Animales) == 0:
-            messagebox.showinfo("Perdiste", "tu personaje murió")
+        elif len(Animales) == 0:
+            messagebox.showinfo("Perdiste", "No tienes animales restantes")
             yesno = messagebox.askyesno("Confirmar", "¿Jugar de nuevo?")
             if yesno:
                 reiniciar_juego()
             else:
                 Mundos.quit()
-    threading.Thread(target=resultado).start()
+
+
     #Botón para devolverse 
     def atras():
         Mundos.destroy()
